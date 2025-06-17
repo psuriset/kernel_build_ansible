@@ -1,0 +1,69 @@
+---
+- name: Install required packages
+  ansible.builtin.dnf:
+    name: "{{ required_packages }}"
+    state: present
+    update_cache: true
+  when: ansible_os_family == "RedHat"
+
+- name: Create kernel build directory
+  ansible.builtin.file:
+    path: "{{ kernel_build_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Download kernel source
+  ansible.builtin.get_url:
+    url: "{{ kernel_source_url }}"
+    dest: "/tmp/linux-{{ kernel_version }}.tar.xz"
+    mode: '0644'
+
+- name: Extract kernel source
+  ansible.builtin.unarchive:
+    src: "/tmp/linux-{{ kernel_version }}.tar.xz"
+    dest: "/usr/src"
+    remote_src: true
+
+- name: Copy kernel source to build directory
+  ansible.builtin.command: "cp -r {{ kernel_source_dir }}/* {{ kernel_build_dir }}/"
+  args:
+    creates: "{{ kernel_build_dir }}/Makefile"
+
+- name: Generate kernel configuration
+  ansible.builtin.command: "make {{ kernel_config }}"
+  args:
+    chdir: "{{ kernel_build_dir }}"
+  when: kernel_config == 'defconfig' or kernel_config == 'oldconfig'
+
+- name: Build kernel
+  ansible.builtin.command: "make -j{{ num_cores }}"
+  args:
+    chdir: "{{ kernel_build_dir }}"
+
+- name: Build kernel modules
+  ansible.builtin.command: "make -j{{ num_cores }} modules"
+  args:
+    chdir: "{{ kernel_build_dir }}"
+
+- name: Install kernel modules
+  ansible.builtin.command: "make modules_install"
+  args:
+    chdir: "{{ kernel_build_dir }}"
+
+- name: Install kernel
+  ansible.builtin.command: "make install"
+  args:
+    chdir: "{{ kernel_build_dir }}"
+
+- name: Create initramfs
+  ansible.builtin.command: dracut --force
+  when: ansible_os_family == "RedHat"
+
+- name: Update GRUB configuration for RHEL/Fedora
+  ansible.builtin.command: grub2-mkconfig -o /boot/grub2/grub.cfg
+  when: ansible_os_family == "RedHat"
+
+- name: Clean up temporary files
+  ansible.builtin.file:
+    path: "/tmp/linux-{{ kernel_version }}.tar.xz"
+    state: absent 

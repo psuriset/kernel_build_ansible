@@ -1,0 +1,10 @@
+---
+- name: Build Linux Kernel from Source
+  hosts: all
+  become: true
+  vars_files:
+    - vars/kernel_vars.yml
+
+  tasks:
+    - name: Include kernel build tasks
+      ansible.builtin.import_tasks: tasks/build_kernel.yml 
