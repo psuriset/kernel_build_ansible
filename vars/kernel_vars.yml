@@ -1,6 +1,6 @@
 ---
 # Kernel source configuration
-kernel_version: "6.8.1"  # Change this to your desired kernel version
+kernel_version: "6.6.93"  # Change this to your desired kernel version
 kernel_source_url: "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-{{ kernel_version }}.tar.xz"
 kernel_source_dir: "/usr/src/linux-{{ kernel_version }}"
 kernel_build_dir: "/usr/src/linux-{{ kernel_version }}-build"

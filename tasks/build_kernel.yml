@@ -25,7 +25,7 @@
     remote_src: true
 
 - name: Copy kernel source to build directory
-  ansible.builtin.command: "cp -r {{ kernel_source_dir }}/* {{ kernel_build_dir }}/"
+  ansible.builtin.shell: "cp -r {{ kernel_source_dir }}/* {{ kernel_build_dir }}/"
   args:
     creates: "{{ kernel_build_dir }}/Makefile"
 
