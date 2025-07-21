@@ -50,8 +50,8 @@
   args:
     chdir: "{{ kernel_build_dir }}"
 
-- name: Create initramfs
-  ansible.builtin.command: dracut --force
+- name: Create initramfs for the new kernel
+  ansible.builtin.command: "dracut --force /boot/initramfs-{{ kernel_version }}.img {{ kernel_version }}"
   when: ansible_os_family == "RedHat"
 
 - name: Update GRUB configuration for RHEL/Fedora
