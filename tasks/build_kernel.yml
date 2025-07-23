@@ -35,6 +35,11 @@
     chdir: "{{ kernel_build_dir }}"
   when: kernel_config == 'defconfig' or kernel_config == 'oldconfig'
 
+- name: make clean
+  ansible.builtin.command: "make clean"
+  args:
+    chdir: "{{ kernel_build_dir }}"
+    
 - name: Build kernel and modules
   ansible.builtin.command: "make -j{{ num_cores }}"
   args:
