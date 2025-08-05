@@ -1,7 +1,6 @@
 ---
 - name: Build Linux Kernel from Source
   hosts: all
-  become: true
   vars_files:
     - vars/kernel_vars.yml
 

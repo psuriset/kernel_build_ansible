@@ -1,9 +1,10 @@
 ---
-- name: Install required packages
+- name: Install kernel build dependencies
   ansible.builtin.dnf:
     name: "{{ required_packages }}"
     state: present
     update_cache: true
+  become: true
   when: ansible_os_family == "RedHat"
 
 - name: Create kernel build directory
@@ -11,59 +12,60 @@
     path: "{{ kernel_build_dir }}"
     state: directory
     mode: '0755'
+  become: true
 
-- name: Download kernel source
-  ansible.builtin.get_url:
-    url: "{{ kernel_source_url }}"
-    dest: "/tmp/linux-{{ kernel_version }}.tar.xz"
-    mode: '0644'
-
-- name: Extract kernel source
+- name: Download and extract kernel source
   ansible.builtin.unarchive:
-    src: "/tmp/linux-{{ kernel_version }}.tar.xz"
-    dest: "/usr/src"
+    src: "{{ kernel_source_url }}"
+    dest: "{{ kernel_build_dir }}"
     remote_src: true
-
-- name: Copy kernel source to build directory
-  ansible.builtin.command: "cp -r {{ kernel_source_dir }}/* {{ kernel_build_dir }}/"
-  args:
+    extra_opts: [--strip-components=1]
     creates: "{{ kernel_build_dir }}/Makefile"
+  become: true
+
+- name: Handle interactive menuconfig
+  ansible.builtin.fail:
+    msg: "Interactive 'menuconfig' is not supported in this automated playbook. Please run it manually or choose another config option."
+  when: kernel_config == 'menuconfig'
 
 - name: Generate kernel configuration
   ansible.builtin.command: "make {{ kernel_config }}"
   args:
     chdir: "{{ kernel_build_dir }}"
-  when: kernel_config == 'defconfig' or kernel_config == 'oldconfig'
+    creates: "{{ kernel_build_dir }}/.config"
+  when: kernel_config in ['defconfig', 'oldconfig']
 
-- name: Build kernel
+- name: Build kernel and modules
   ansible.builtin.command: "make -j{{ num_cores }}"
   args:
     chdir: "{{ kernel_build_dir }}"
-
-- name: Build kernel modules
-  ansible.builtin.command: "make -j{{ num_cores }} modules"
-  args:
-    chdir: "{{ kernel_build_dir }}"
+    creates: "{{ kernel_build_dir }}/arch/x86/boot/bzImage" # Path may vary for other architectures
 
 - name: Install kernel modules
   ansible.builtin.command: "make modules_install"
   args:
     chdir: "{{ kernel_build_dir }}"
+  become: true
 
 - name: Install kernel
   ansible.builtin.command: "make install"
   args:
     chdir: "{{ kernel_build_dir }}"
+  become: true
 
-- name: Create initramfs
-  ansible.builtin.command: dracut --force
+- name: Create initramfs for the new kernel
+  ansible.builtin.command: "dracut --force /boot/initramfs-{{ kernel_version }}.img {{ kernel_version }}"
+  args:
+    creates: "/boot/initramfs-{{ kernel_version }}.img"
+  become: true
   when: ansible_os_family == "RedHat"
 
-- name: Update GRUB configuration for RHEL/Fedora
-  ansible.builtin.command: grub2-mkconfig -o /boot/grub2/grub.cfg
+- name: Update GRUB configuration
+  ansible.builtin.command: "grub2-mkconfig -o {{ grub_cfg_path }}"
+  become: true
   when: ansible_os_family == "RedHat"
 
-- name: Clean up temporary files
+- name: Clean up temporary source archive (if any)
   ansible.builtin.file:
     path: "/tmp/linux-{{ kernel_version }}.tar.xz"
     state: absent 
