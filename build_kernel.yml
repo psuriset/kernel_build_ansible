@@ -6,4 +6,4 @@
 
   tasks:
     - name: Include kernel build tasks
-      ansible.builtin.import_tasks: tasks/build_kernel.yml 
+      ansible.builtin.import_tasks: tasks/build_kernel.yml

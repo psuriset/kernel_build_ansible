@@ -23,23 +23,40 @@
     creates: "{{ kernel_build_dir }}/Makefile"
   become: true
 
-- name: Handle interactive menuconfig
-  ansible.builtin.fail:
-    msg: "Interactive 'menuconfig' is not supported in this automated playbook. Please run it manually or choose another config option."
-  when: kernel_config == 'menuconfig'
+- name: Set kernel config target
+  ansible.builtin.set_fact:
+    kernel_make_target: "{{ 'olddefconfig' if kernel_config == 'oldconfig' else kernel_config }}"
+
+- name: Copy current running kernel config (for oldconfig)
+  ansible.builtin.copy:
+    src: "/boot/config-{{ ansible_kernel }}"
+    dest: "{{ kernel_build_dir }}/.config"
+    remote_src: true
+  when: kernel_config == 'oldconfig'
+  become: true
 
 - name: Generate kernel configuration
-  ansible.builtin.command: "make {{ kernel_config }}"
+  ansible.builtin.command: "make {{ kernel_make_target }}"
   args:
     chdir: "{{ kernel_build_dir }}"
     creates: "{{ kernel_build_dir }}/.config"
-  when: kernel_config in ['defconfig', 'oldconfig']
+  become: true
 
 - name: Build kernel and modules
-  ansible.builtin.command: "make -j{{ num_cores }}"
+  ansible.builtin.shell: |
+    set -e
+    make -j{{ num_cores }}
+    touch .build-complete
   args:
     chdir: "{{ kernel_build_dir }}"
-    creates: "{{ kernel_build_dir }}/arch/x86/boot/bzImage" # Path may vary for other architectures
+    creates: "{{ kernel_build_dir }}/.build-complete"
+  become: true
+
+- name: Get built kernel release
+  ansible.builtin.command: "make -s kernelrelease"
+  args:
+    chdir: "{{ kernel_build_dir }}"
+  register: kernel_release
 
 - name: Install kernel modules
   ansible.builtin.command: "make modules_install"
@@ -53,19 +70,28 @@
     chdir: "{{ kernel_build_dir }}"
   become: true
 
+- name: Detect GRUB config path (BIOS vs UEFI)
+  ansible.builtin.stat:
+    path: "/boot/efi/EFI/redhat/grub.cfg"
+  register: grub_efi
+
+- name: Set effective GRUB config path
+  ansible.builtin.set_fact:
+    effective_grub_cfg: "{{ '/boot/efi/EFI/redhat/grub.cfg' if grub_efi.stat.exists else grub_cfg_path }}"
+
 - name: Create initramfs for the new kernel
-  ansible.builtin.command: "dracut --force /boot/initramfs-{{ kernel_version }}.img {{ kernel_version }}"
+  ansible.builtin.command: "dracut --force /boot/initramfs-{{ kernel_release.stdout }}.img {{ kernel_release.stdout }}"
   args:
-    creates: "/boot/initramfs-{{ kernel_version }}.img"
+    creates: "/boot/initramfs-{{ kernel_release.stdout }}.img"
   become: true
   when: ansible_os_family == "RedHat"
 
 - name: Update GRUB configuration
-  ansible.builtin.command: "grub2-mkconfig -o {{ grub_cfg_path }}"
+  ansible.builtin.command: "grub2-mkconfig -o {{ effective_grub_cfg }}"
   become: true
   when: ansible_os_family == "RedHat"
 
-- name: Clean up temporary source archive (if any)
-  ansible.builtin.file:
-    path: "/tmp/linux-{{ kernel_version }}.tar.xz"
-    state: absent 
+- name: Optional reboot to new kernel
+  ansible.builtin.reboot:
+    msg: "Rebooting to use newly built kernel"
+  when: reboot_after_build | default(false)
