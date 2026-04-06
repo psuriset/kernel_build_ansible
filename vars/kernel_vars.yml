@@ -8,6 +8,7 @@ kernel_build_dir: "/usr/src/linux-{{ kernel_version }}-build"
 kernel_config: "defconfig"  # Options: defconfig, oldconfig
 num_cores: "{{ ansible_processor_vcpus | default(2) }}"
 grub_cfg_path: "/boot/grub2/grub.cfg"
+reboot_after_build: false
 
 # Required packages for kernel build (Fedora/RHEL)
 required_packages:
@@ -28,4 +29,4 @@ required_packages:
   - python3
   - rsync
   - rpm-build
-  - rpmdevtools 
+  - rpmdevtools
