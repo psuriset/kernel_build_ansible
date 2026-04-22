@@ -1,0 +1,44 @@
+---
+- name: Install git if not present
+  ansible.builtin.dnf:
+    name: git
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_os_family == "RedHat"
+
+- name: Check if kernel git repository exists
+  ansible.builtin.stat:
+    path: "{{ kernel_git_dir }}/.git"
+  register: kernel_git_stat
+
+- name: Clone kernel repository (first time)
+  ansible.builtin.git:
+    repo: "{{ kernel_git_repo }}"
+    dest: "{{ kernel_git_dir }}"
+    version: "{{ kernel_git_branch | default('master') }}"
+    depth: "{{ kernel_git_depth | default(omit) }}"
+    update: false
+  when: not kernel_git_stat.stat.exists
+  become: true
+
+- name: Update kernel repository (pull latest)
+  ansible.builtin.git:
+    repo: "{{ kernel_git_repo }}"
+    dest: "{{ kernel_git_dir }}"
+    version: "{{ kernel_git_branch | default('master') }}"
+    update: true
+    force: true
+  when: kernel_git_stat.stat.exists and (kernel_git_update | default(true))
+  become: true
+
+- name: Get current kernel commit hash
+  ansible.builtin.command: git rev-parse HEAD
+  args:
+    chdir: "{{ kernel_git_dir }}"
+  register: kernel_commit_hash
+  changed_when: false
+
+- name: Display current kernel commit
+  ansible.builtin.debug:
+    msg: "Kernel at commit: {{ kernel_commit_hash.stdout }}"

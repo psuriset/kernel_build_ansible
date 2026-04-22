@@ -1,0 +1,45 @@
+---
+- name: Extract config URL from syzkaller bug
+  ansible.builtin.set_fact:
+    config_url: "{{ bug_url | regex_replace('.*bug\\?extid=', 'https://syzkaller.appspot.com/text?tag=KernelConfig&x=') }}"
+  when: bug_url is defined and 'syzkaller.appspot.com/bug' in bug_url
+
+- name: Use direct config URL if provided
+  ansible.builtin.set_fact:
+    config_url: "{{ kernel_bug_config_url }}"
+  when: kernel_bug_config_url is defined
+
+- name: Fail if no config URL available
+  ansible.builtin.fail:
+    msg: "Either bug_url or kernel_bug_config_url must be provided"
+  when: config_url is not defined
+
+- name: Display config URL
+  ansible.builtin.debug:
+    msg: "Downloading kernel config from: {{ config_url }}"
+
+- name: Download kernel config from bug report
+  ansible.builtin.get_url:
+    url: "{{ config_url }}"
+    dest: "{{ kernel_build_dir }}/.config"
+    mode: '0644'
+    force: true
+  become: true
+  register: config_download
+
+- name: Verify config file was downloaded
+  ansible.builtin.stat:
+    path: "{{ kernel_build_dir }}/.config"
+  register: config_file_stat
+
+- name: Fail if config file is empty
+  ansible.builtin.fail:
+    msg: "Downloaded config file is empty or invalid"
+  when: config_file_stat.stat.size == 0
+
+- name: Run olddefconfig to update config
+  ansible.builtin.command: make olddefconfig
+  args:
+    chdir: "{{ kernel_build_dir }}"
+  become: true
+  when: config_download.changed

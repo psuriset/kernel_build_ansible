@@ -1,0 +1,13 @@
+---
+- name: Build Linux Kernel from Git with Bug Config
+  hosts: all
+  vars_files:
+    - vars/kernel_vars.yml
+    - vars/kernel_git_vars.yml
+
+  tasks:
+    - name: Fetch kernel from git repository
+      ansible.builtin.import_tasks: tasks/fetch_kernel_git.yml
+
+    - name: Build kernel with bug-specific config
+      ansible.builtin.import_tasks: tasks/build_kernel_from_git.yml

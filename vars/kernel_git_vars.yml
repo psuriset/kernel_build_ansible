@@ -1,0 +1,23 @@
+---
+# Git repository configuration
+kernel_git_repo: "https://github.com/torvalds/linux.git"
+kernel_git_dir: "/usr/src/linux-git"
+kernel_git_branch: "master"  # or specify a specific branch/tag
+kernel_git_update: true  # Set to false to skip git pull
+# kernel_git_depth: 1  # Uncomment for shallow clone (faster, less disk space)
+
+# Use kernel_git_dir as build directory when working from git
+kernel_build_dir: "{{ kernel_git_dir }}"
+
+# Bug report configuration
+# Option 1: Provide the bug URL directly (will extract config URL automatically)
+# bug_url: "https://syzkaller.appspot.com/bug?extid=f2b5401166003c7d09c1"
+
+# Option 2: Provide the direct config URL
+# kernel_bug_config_url: "https://syzkaller.appspot.com/text?tag=KernelConfig&x=3e19fa1907a3dfda"
+
+# Build options
+clean_before_build: true
+install_kernel: false  # Set to true to install the built kernel
+num_cores: "{{ ansible_processor_vcpus | default(2) }}"
+reboot_after_build: false
