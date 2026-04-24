@@ -1,4 +1,12 @@
 ---
+# Clone or update tree under {{ kernel_git_dir }} (see vars/kernel_git_vars.yml).
+- name: Create parent directory for kernel git checkout
+  ansible.builtin.file:
+    path: "{{ kernel_git_dir | dirname }}"
+    state: directory
+    mode: "0755"
+  become: true
+
 - name: Install git if not present
   ansible.builtin.dnf:
     name: git

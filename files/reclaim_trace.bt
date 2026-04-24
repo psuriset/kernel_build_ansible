@@ -1,0 +1,12 @@
+tracepoint:vmscan:mm_vmscan_direct_reclaim_begin
+{
+  @start[tid] = nsecs;
+}
+
+tracepoint:vmscan:mm_vmscan_direct_reclaim_end
+/@start[tid]/
+{
+  $delta_ms = (nsecs - @start[tid]) / 1000000;
+  printf("direct_reclaim_latency_ms=%d tid=%d comm=%s\n", $delta_ms, tid, comm);
+  delete(@start[tid]);
+}

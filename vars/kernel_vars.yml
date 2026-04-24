@@ -5,7 +5,7 @@ kernel_source_url: "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-{{ kernel
 kernel_build_dir: "/usr/src/linux-{{ kernel_version }}-build"
 
 # Build configuration
-kernel_config: "defconfig"  # Options: defconfig, oldconfig
+kernel_config: "defconfig"  # defconfig, oldconfig, olddefconfig (or menuconfig — not automated in these tasks)
 num_cores: "{{ ansible_processor_vcpus | default(2) }}"
 grub_cfg_path: "/boot/grub2/grub.cfg"
 reboot_after_build: false

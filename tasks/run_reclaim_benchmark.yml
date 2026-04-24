@@ -1,0 +1,71 @@
+---
+- name: Ensure reclaim benchmark result directory exists
+  ansible.builtin.file:
+    path: "{{ reclaim_results_dir_remote }}"
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Install reclaim benchmark dependencies
+  ansible.builtin.dnf:
+    name: "{{ reclaim_benchmark_required_packages }}"
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_os_family == "RedHat"
+
+- name: Install reclaim benchmark script
+  ansible.builtin.template:
+    src: templates/run_reclaim_test.sh.j2
+    dest: /usr/local/bin/run_reclaim_test.sh
+    mode: "0755"
+  become: true
+
+- name: Install optional bpftrace script
+  ansible.builtin.copy:
+    src: files/reclaim_trace.bt
+    dest: /usr/local/bin/reclaim_trace.bt
+    mode: "0644"
+  become: true
+  when: reclaim_enable_bpftrace | bool
+
+- name: Run optional reclaim bpftrace in background
+  ansible.builtin.shell: |
+    nohup bpftrace /usr/local/bin/reclaim_trace.bt > "{{ reclaim_results_dir_remote }}/bpftrace_{{ benchmark_label }}.log" 2>&1 &
+    echo $! > "{{ reclaim_results_dir_remote }}/bpftrace_{{ benchmark_label }}.pid"
+  args:
+    executable: /bin/bash
+  become: true
+  when: reclaim_enable_bpftrace | bool
+
+- name: Run reclaim benchmark
+  ansible.builtin.command: /usr/local/bin/run_reclaim_test.sh {{ benchmark_label }}
+  become: true
+  register: reclaim_benchmark_run
+
+- name: Stop optional reclaim bpftrace
+  ansible.builtin.shell: |
+    if [ -f "{{ reclaim_results_dir_remote }}/bpftrace_{{ benchmark_label }}.pid" ]; then
+      kill "$(cat "{{ reclaim_results_dir_remote }}/bpftrace_{{ benchmark_label }}.pid")" || true
+      rm -f "{{ reclaim_results_dir_remote }}/bpftrace_{{ benchmark_label }}.pid"
+    fi
+  args:
+    executable: /bin/bash
+  become: true
+  when: reclaim_enable_bpftrace | bool
+
+- name: Find reclaim benchmark artifacts
+  ansible.builtin.find:
+    paths: "{{ reclaim_results_dir_remote }}"
+    patterns: "*{{ benchmark_label }}*"
+    file_type: file
+  register: reclaim_result_files
+  become: true
+
+- name: Fetch reclaim benchmark artifacts
+  ansible.builtin.fetch:
+    src: "{{ item.path }}"
+    dest: "{{ reclaim_results_dir_local }}/"
+    flat: false
+  loop: "{{ reclaim_result_files.files }}"
+  become: true

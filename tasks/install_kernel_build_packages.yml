@@ -1,0 +1,9 @@
+---
+# Shared dependency install for tarball and git-based kernel builds (Fedora/RHEL).
+- name: Install required packages for kernel build
+  ansible.builtin.dnf:
+    name: "{{ required_packages }}"
+    state: present
+    update_cache: true
+  become: true
+  when: ansible_os_family == "RedHat"
