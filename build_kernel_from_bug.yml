@@ -2,7 +2,7 @@
 - name: Build Linux Kernel from Git with Bug Config
   hosts: all
   vars_files:
-    - vars/kernel_vars.yml
+    - vars/common.yml
     - vars/kernel_git_vars.yml
 
   tasks:

@@ -1,0 +1,28 @@
+---
+# Common variables shared across all kernel builds
+
+# Build configuration
+num_cores: "{{ ansible_processor_vcpus | default(2) }}"
+reboot_after_build: false
+grub_cfg_path: "/boot/grub2/grub.cfg"
+
+# Required packages for kernel build (Fedora/RHEL)
+required_packages:
+  - gcc
+  - make
+  - ncurses-devel
+  - bison
+  - flex
+  - openssl-devel
+  - elfutils-libelf-devel
+  - dwarves
+  - git
+  - wget
+  - xz
+  - bc
+  - openssl
+  - perl
+  - python3
+  - rsync
+  - rpm-build
+  - rpmdevtools

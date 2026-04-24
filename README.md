@@ -41,24 +41,35 @@ ansible-playbook build_kernel_from_bug.yml
 
 Configuration in `vars/kernel_git_vars.yml`:
 
-#### Using a syzkaller bug URL:
-```yaml
-bug_url: "https://syzkaller.appspot.com/bug?extid=f2b5401166003c7d09c1"
-```
+To use a kernel config from a syzkaller bug report:
 
-#### Using a direct config URL:
+1. Visit the bug URL (e.g., `https://syzkaller.appspot.com/bug?extid=f2b5401166003c7d09c1`)
+2. Click the "Kernel config" link on the bug page
+3. Copy the config URL from your browser
+4. Set it in `vars/kernel_git_vars.yml`:
+
 ```yaml
 kernel_bug_config_url: "https://syzkaller.appspot.com/text?tag=KernelConfig&x=3e19fa1907a3dfda"
 ```
 
 ## Configuration Options
 
-### Common Variables (`vars/kernel_vars.yml`)
+### Common Variables (`vars/common.yml`)
+
+These variables apply to all build types:
 
 ```yaml
 num_cores: 4                    # Number of CPU cores for parallel build
 reboot_after_build: false       # Auto-reboot after installation
 grub_cfg_path: "/boot/grub2/grub.cfg"
+```
+
+### Stable Kernel Variables (`vars/kernel_vars.yml`)
+
+```yaml
+kernel_version: "6.12.93"       # Kernel version to build
+kernel_config: "defconfig"      # Configuration method
+clean_before_build: false       # Run 'make clean' before build
 ```
 
 ### Git-specific Variables (`vars/kernel_git_vars.yml`)
@@ -76,13 +87,18 @@ install_kernel: false           # Install after building
 
 ### Example 1: Build latest kernel with syzkaller bug config
 
-1. Edit `vars/kernel_git_vars.yml`:
+1. Visit the bug page and get the kernel config URL:
+   - Go to: `https://syzkaller.appspot.com/bug?extid=f2b5401166003c7d09c1`
+   - Click "Kernel config" link
+   - Copy the URL
+
+2. Edit `vars/kernel_git_vars.yml`:
 ```yaml
-bug_url: "https://syzkaller.appspot.com/bug?extid=f2b5401166003c7d09c1"
+kernel_bug_config_url: "https://syzkaller.appspot.com/text?tag=KernelConfig&x=3e19fa1907a3dfda"
 install_kernel: false  # Just build, don't install
 ```
 
-2. Run the playbook:
+3. Run the playbook:
 ```bash
 ansible-playbook build_kernel_from_bug.yml
 ```
@@ -136,19 +152,23 @@ ansible-playbook build_kernel_from_bug.yml
 
 1. Find a syzkaller bug report (e.g., https://syzkaller.appspot.com/bug?extid=f2b5401166003c7d09c1)
 
-2. Copy the bug URL to `vars/kernel_git_vars.yml`:
+2. Open the bug page in your browser and extract the kernel config URL:
+   - Click the "Kernel config" link on the bug page
+   - Copy the URL (e.g., `https://syzkaller.appspot.com/text?tag=KernelConfig&x=3e19fa1907a3dfda`)
+
+3. Add the config URL to `vars/kernel_git_vars.yml`:
 ```yaml
-bug_url: "https://syzkaller.appspot.com/bug?extid=f2b5401166003c7d09c1"
+kernel_bug_config_url: "https://syzkaller.appspot.com/text?tag=KernelConfig&x=3e19fa1907a3dfda"
 ```
 
-3. Build the kernel:
+4. Build the kernel:
 ```bash
 ansible-playbook build_kernel_from_bug.yml
 ```
 
-4. The playbook will:
+5. The playbook will:
    - Clone/update the Linux git repository
-   - Download the kernel config from the bug report
+   - Download the kernel config from the URL
    - Build the kernel with that config
    - Optionally install the kernel
 

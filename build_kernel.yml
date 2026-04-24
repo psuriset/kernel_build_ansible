@@ -3,6 +3,7 @@
   hosts: all
   become: true
   vars_files:
+    - vars/common.yml
     - vars/kernel_vars.yml
 
   tasks:

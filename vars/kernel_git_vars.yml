@@ -1,22 +1,28 @@
 ---
+# Git kernel build variables
+# Common variables (num_cores, packages, grub_cfg_path, etc.) are in vars/common.yml
+
 # Git repository configuration
 kernel_git_repo: "https://github.com/torvalds/linux.git"
 kernel_git_dir: "/usr/src/linux-git"
 # Alias: same as kernel_git_dir (keeps older playbooks / task names aligned)
 kernel_git_clone_path: "{{ kernel_git_dir }}"
-kernel_git_branch: "master"  # or a specific tag/commit
-kernel_git_update: true
-# kernel_git_depth: 1  # optional shallow clone
+kernel_git_branch: "master"  # or specify a specific branch/tag
+kernel_git_update: true  # Set to false to skip git pull on existing repository
+# kernel_git_depth: 1  # Uncomment for shallow clone (faster, less disk space)
 
 # In-tree or checked-out location used as build tree from git
 kernel_build_dir: "{{ kernel_git_dir }}"
 
-# Bug report (optional) — set bug_url or kernel_bug_config_url to use fetch_bug_config
-# bug_url: "https://syzkaller.appspot.com/bug?extid=..."
-# kernel_bug_config_url: "https://syzkaller.appspot.com/text?tag=KernelConfig&x=..."
+# Bug report configuration
+# NOTE: Cannot automatically extract config from bug URL.
+# Visit the bug URL, find "Kernel config" link, and paste the direct URL below.
+#
+# Example bug URL: https://syzkaller.appspot.com/bug?extid=f2b5401166003c7d09c1
+# Example config URL: https://syzkaller.appspot.com/text?tag=KernelConfig&x=3e19fa1907a3dfda
+# bug_url: "https://syzkaller.appspot.com/bug?extid=f2b5401166003c7d09c1"  # For reference only
+kernel_bug_config_url: ""  # REQUIRED: Direct kernel config URL from syzkaller
 
 # Build options
 clean_before_build: true
-install_kernel: false
-num_cores: "{{ ansible_processor_vcpus | default(2) }}"
-reboot_after_build: false
+install_kernel: false  # Set to true to install the built kernel
