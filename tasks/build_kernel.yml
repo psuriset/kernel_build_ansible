@@ -46,6 +46,8 @@
   ansible.builtin.command: "make clean"
   args:
     chdir: "{{ kernel_build_dir }}"
+  become: true
+  when: clean_before_build | default(false)
     
 - name: Build kernel and modules
   ansible.builtin.shell: |

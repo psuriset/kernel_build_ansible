@@ -2,6 +2,7 @@
 - name: Build Linux Kernel from Source
   hosts: all
   vars_files:
+    - vars/common.yml
     - vars/kernel_vars.yml
 
   tasks:

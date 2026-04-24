@@ -1,8 +1,21 @@
 ---
-- name: Extract config URL from syzkaller bug
-  ansible.builtin.set_fact:
-    config_url: "{{ bug_url | regex_replace('.*bug\\?extid=', 'https://syzkaller.appspot.com/text?tag=KernelConfig&x=') }}"
-  when: bug_url is defined and 'syzkaller.appspot.com/bug' in bug_url
+# NOTE: Cannot automatically extract config URL from bug URL because the
+# kernel config hash is not derivable from the bug extid. Users must:
+# 1. Visit the bug URL in a browser
+# 2. Find the "Kernel config" link
+# 3. Copy that URL to kernel_bug_config_url variable
+#
+# This task now only handles direct config URLs via kernel_bug_config_url
+
+- name: Fail if bug_url is provided without config_url
+  ansible.builtin.fail:
+    msg: |
+      Cannot automatically extract kernel config from bug URL.
+      Please visit {{ bug_url }} and copy the "Kernel config" link.
+      Then set: kernel_bug_config_url: "<the config URL>"
+  when:
+    - bug_url is defined
+    - kernel_bug_config_url is not defined
 
 - name: Use direct config URL if provided
   ansible.builtin.set_fact:
