@@ -5,11 +5,13 @@
 # Git repository configuration
 kernel_git_repo: "https://github.com/torvalds/linux.git"
 kernel_git_dir: "/usr/src/linux-git"
+# Alias: same as kernel_git_dir (keeps older playbooks / task names aligned)
+kernel_git_clone_path: "{{ kernel_git_dir }}"
 kernel_git_branch: "master"  # or specify a specific branch/tag
 kernel_git_update: true  # Set to false to skip git pull on existing repository
 # kernel_git_depth: 1  # Uncomment for shallow clone (faster, less disk space)
 
-# Use kernel_git_dir as build directory when working from git
+# In-tree or checked-out location used as build tree from git
 kernel_build_dir: "{{ kernel_git_dir }}"
 
 # Bug report configuration

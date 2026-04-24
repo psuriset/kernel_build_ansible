@@ -8,5 +8,5 @@ kernel_source_url: "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-{{ kernel
 kernel_build_dir: "/usr/src/linux-{{ kernel_version }}-build"
 
 # Build configuration
-kernel_config: "defconfig"  # Options: defconfig, oldconfig
+kernel_config: "defconfig"  # defconfig, oldconfig, olddefconfig (or menuconfig — not automated in these tasks)
 clean_before_build: false  # Set to true to run 'make clean' before build

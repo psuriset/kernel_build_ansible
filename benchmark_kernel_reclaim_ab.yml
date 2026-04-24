@@ -1,0 +1,64 @@
+---
+- name: Baseline current kernel, build candidate kernel, reboot, and compare reclaim
+  hosts: all
+  serial: 1
+  gather_facts: true
+  become: true
+
+  vars_files:
+    - vars/kernel_vars.yml
+    - vars/kernel_git_vars.yml
+    - vars/reclaim_benchmark_vars.yml
+
+  vars:
+    install_kernel: true
+    reboot_after_build: true
+
+  tasks:
+    - name: Capture baseline running kernel
+      ansible.builtin.set_fact:
+        baseline_kernel_release: "{{ ansible_kernel }}"
+
+    - name: Display baseline kernel
+      ansible.builtin.debug:
+        msg: "Baseline running kernel: {{ baseline_kernel_release }}"
+
+    - name: Run reclaim benchmark on baseline kernel
+      ansible.builtin.import_tasks: tasks/run_reclaim_benchmark.yml
+      vars:
+        benchmark_label: baseline
+      when: run_reclaim_benchmark | bool
+
+    - name: Install kernel build dependencies
+      ansible.builtin.import_tasks: tasks/install_kernel_build_packages.yml
+
+    - name: Fetch kernel from git repository
+      ansible.builtin.import_tasks: tasks/fetch_kernel_git.yml
+
+    - name: Build and install candidate kernel from git
+      ansible.builtin.import_tasks: tasks/build_kernel_from_git.yml
+
+    - name: Wait for host to return after reboot
+      ansible.builtin.wait_for_connection:
+        delay: "{{ post_reboot_delay }}"
+        timeout: "{{ reboot_timeout }}"
+
+    - name: Refresh facts after reboot
+      ansible.builtin.setup:
+
+    - name: Assert host booted into a different kernel
+      ansible.builtin.assert:
+        that:
+          - ansible_kernel != baseline_kernel_release
+        fail_msg: "Host rebooted but kernel did not change. baseline={{ baseline_kernel_release }} current={{ ansible_kernel }}"
+        success_msg: "Host is now running candidate kernel {{ ansible_kernel }}"
+
+    - name: Run reclaim benchmark on candidate kernel
+      ansible.builtin.import_tasks: tasks/run_reclaim_benchmark.yml
+      vars:
+        benchmark_label: candidate
+      when: run_reclaim_benchmark | bool
+
+    - name: Compare reclaim benchmark results locally
+      ansible.builtin.import_tasks: tasks/compare_reclaim_results.yml
+      when: run_reclaim_benchmark | bool

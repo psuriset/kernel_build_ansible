@@ -1,11 +1,6 @@
 ---
-- name: Install kernel build dependencies
-  ansible.builtin.dnf:
-    name: "{{ required_packages }}"
-    state: present
-    update_cache: true
-  become: true
-  when: ansible_os_family == "RedHat"
+- name: Install required packages for kernel build
+  ansible.builtin.import_tasks: tasks/install_kernel_build_packages.yml
 
 - name: Create kernel build directory
   ansible.builtin.file:
@@ -41,6 +36,7 @@
     chdir: "{{ kernel_build_dir }}"
     creates: "{{ kernel_build_dir }}/.config"
   become: true
+  when: kernel_config in ['defconfig', 'oldconfig', 'olddefconfig']
 
 - name: make clean
   ansible.builtin.command: "make clean"
@@ -48,7 +44,7 @@
     chdir: "{{ kernel_build_dir }}"
   become: true
   when: clean_before_build | default(false)
-    
+
 - name: Build kernel and modules
   ansible.builtin.shell: |
     set -e
@@ -64,6 +60,7 @@
   args:
     chdir: "{{ kernel_build_dir }}"
   register: kernel_release
+  changed_when: false
 
 - name: Install kernel modules
   ansible.builtin.command: "make modules_install"
@@ -101,4 +98,5 @@
 - name: Optional reboot to new kernel
   ansible.builtin.reboot:
     msg: "Rebooting to use newly built kernel"
+    pre_reboot_delay: 5
   when: reboot_after_build | default(false)

@@ -1,11 +1,7 @@
 ---
-- name: Install kernel build dependencies
-  ansible.builtin.dnf:
-    name: "{{ required_packages }}"
-    state: present
-    update_cache: true
-  become: true
-  when: ansible_os_family == "RedHat"
+# Build from a git tree at {{ kernel_build_dir }} (usually same as {{ kernel_git_dir }}).
+- name: Install required packages for kernel build
+  ansible.builtin.import_tasks: tasks/install_kernel_build_packages.yml
 
 - name: Create or verify kernel build directory exists
   ansible.builtin.file:
@@ -22,7 +18,7 @@
   when: clean_before_build | default(true)
 
 - name: Fetch kernel config from bug report
-  ansible.builtin.import_tasks: fetch_bug_config.yml
+  ansible.builtin.import_tasks: tasks/fetch_bug_config.yml
   when: (bug_url is defined) or (kernel_bug_config_url is defined)
 
 - name: Generate default config if no bug config provided
@@ -35,7 +31,7 @@
 
 - name: Display build configuration
   ansible.builtin.debug:
-    msg: 
+    msg:
       - "Building kernel from: {{ kernel_build_dir }}"
       - "Using {{ num_cores }} CPU cores"
       - "Config source: {{ 'Bug report' if (bug_url is defined or kernel_bug_config_url is defined) else 'defconfig' }}"
@@ -94,20 +90,23 @@
   args:
     creates: "/boot/initramfs-{{ kernel_release.stdout }}.img"
   become: true
-  when: 
+  when:
     - install_kernel | default(false)
     - ansible_os_family == "RedHat"
 
 - name: Update GRUB configuration
   ansible.builtin.command: "grub2-mkconfig -o {{ effective_grub_cfg }}"
   become: true
-  when: 
+  when:
     - install_kernel | default(false)
     - ansible_os_family == "RedHat"
 
 - name: Optional reboot to new kernel
   ansible.builtin.reboot:
     msg: "Rebooting to use newly built kernel"
-  when: 
+    pre_reboot_delay: 5
+    post_reboot_delay: "{{ post_reboot_delay | default(20) }}"
+    reboot_timeout: "{{ reboot_timeout | default(600) }}"
+  when:
     - install_kernel | default(false)
     - reboot_after_build | default(false)

@@ -1,0 +1,60 @@
+---
+- name: Ensure local artifact directory exists
+  ansible.builtin.file:
+    path: "{{ reclaim_results_dir_local }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  run_once: true
+
+- name: Render comparison helper
+  ansible.builtin.copy:
+    dest: "{{ reclaim_results_dir_local }}/compare_reclaim_results.py"
+    mode: "0755"
+    content: |
+      #!/usr/bin/env python3
+      import glob
+      import os
+      import re
+
+      base_logs = sorted(glob.glob(os.path.join("{{ reclaim_results_dir_local }}", "**", "*baseline*.log"), recursive=True))
+      cand_logs = sorted(glob.glob(os.path.join("{{ reclaim_results_dir_local }}", "**", "*candidate*.log"), recursive=True))
+
+      def parse_duration(path):
+          with open(path, "r", encoding="utf-8", errors="ignore") as f:
+              text = f.read()
+          m = re.search(r"reclaim_duration_ms=(\d+)", text)
+          return int(m.group(1)) if m else None
+
+      summary_lines = []
+      summary_lines.append("# Reclaim Benchmark Summary")
+      summary_lines.append("")
+
+      for b, c in zip(base_logs, cand_logs):
+          bd = parse_duration(b)
+          cd = parse_duration(c)
+          host = os.path.basename(b).split("_")[0]
+          if bd is None or cd is None:
+              summary_lines.append(f"- {host}: unable to parse one or both logs")
+              continue
+          improvement = ((bd - cd) / bd * 100.0) if bd else 0.0
+          summary_lines.append(f"- {host}: baseline={bd} ms, candidate={cd} ms, improvement={improvement:.2f}%")
+
+      out = os.path.join("{{ reclaim_results_dir_local }}", "SUMMARY.md")
+      with open(out, "w", encoding="utf-8") as f:
+          f.write("\n".join(summary_lines) + "\n")
+
+      print("\n".join(summary_lines))
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate reclaim benchmark summary
+  ansible.builtin.command: python3 "{{ reclaim_results_dir_local }}/compare_reclaim_results.py"
+  delegate_to: localhost
+  run_once: true
+  register: reclaim_summary
+
+- name: Show reclaim summary
+  ansible.builtin.debug:
+    var: reclaim_summary.stdout_lines
+  run_once: true

@@ -1,0 +1,92 @@
+#!/bin/bash
+set -euo pipefail
+
+TEST_FILE="{{ reclaim_test_file }}"
+FILE_SIZE_GB="{{ reclaim_file_size_gb }}"
+STRESS_VM_WORKERS="{{ reclaim_stress_vm_workers }}"
+STRESS_VM_BYTES="{{ reclaim_stress_vm_bytes }}"
+STRESS_TIMEOUT="{{ reclaim_stress_timeout }}"
+RESULT_DIR="{{ reclaim_results_dir_remote }}"
+LABEL="${1:-unnamed}"
+
+mkdir -p "${RESULT_DIR}"
+
+TS="$(date +%Y%m%d_%H%M%S)"
+HOST="$(hostname -s)"
+KERNEL="$(uname -r)"
+OUT="${RESULT_DIR}/${HOST}_${LABEL}_${KERNEL}_${TS}.log}"
+
+exec > >(tee "${OUT}") 2>&1
+
+echo "===== RECLAIM TEST START ====="
+echo "label=${LABEL}"
+echo "host=${HOST}"
+echo "kernel=${KERNEL}"
+echo "time=$(date --iso-8601=seconds)"
+
+echo
+echo "[meminfo_before]"
+grep -E 'MemTotal|MemFree|MemAvailable|Cached|Buffers|SReclaimable|SUnreclaim' /proc/meminfo || true
+
+echo
+echo "[vmstat_before]"
+grep -E 'pgscan|pgsteal|allocstall|pgfault|pgmajfault' /proc/vmstat || true
+
+echo
+echo "[psi_before]"
+cat /proc/pressure/memory || true
+
+echo
+echo "[prepare_test_file]"
+rm -f "${TEST_FILE}"
+dd if=/dev/zero of="${TEST_FILE}" bs=1G count="${FILE_SIZE_GB}" oflag=direct status=progress
+
+echo
+echo "[drop_caches_pre_fill]"
+sync
+echo 3 > /proc/sys/vm/drop_caches
+
+echo
+echo "[fill_page_cache]"
+fio --name=cachefill \
+    --filename="${TEST_FILE}" \
+    --rw=read \
+    --bs=1M \
+    --size="${FILE_SIZE_GB}G" \
+    --ioengine=sync \
+    --direct=0 \
+    --group_reporting
+
+echo
+echo "[meminfo_after_fill]"
+grep -E 'MemTotal|MemFree|MemAvailable|Cached|Buffers|SReclaimable|SUnreclaim' /proc/meminfo || true
+
+echo
+echo "[start_reclaim_pressure]"
+START_NS=$(date +%s%N)
+
+stress-ng --vm "${STRESS_VM_WORKERS}" \
+          --vm-bytes "${STRESS_VM_BYTES}" \
+          --timeout "${STRESS_TIMEOUT}" \
+          --metrics-brief
+
+END_NS=$(date +%s%N)
+DURATION_MS=$(( (END_NS - START_NS) / 1000000 ))
+
+echo
+echo "[meminfo_after]"
+grep -E 'MemTotal|MemFree|MemAvailable|Cached|Buffers|SReclaimable|SUnreclaim' /proc/meminfo || true
+
+echo
+echo "[vmstat_after]"
+grep -E 'pgscan|pgsteal|allocstall|pgfault|pgmajfault' /proc/vmstat || true
+
+echo
+echo "[psi_after]"
+cat /proc/pressure/memory || true
+
+echo
+echo "[summary]"
+echo "reclaim_duration_ms=${DURATION_MS}"
+
+echo "===== RECLAIM TEST END ====="

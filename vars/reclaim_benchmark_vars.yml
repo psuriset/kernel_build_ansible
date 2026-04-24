@@ -1,0 +1,25 @@
+---
+# Reclaim benchmark settings
+run_reclaim_benchmark: true
+
+reclaim_benchmark_required_packages:
+  - fio
+  - stress-ng
+  - sysstat
+  - bpftrace
+
+reclaim_test_file: /var/tmp/reclaim_test_file
+reclaim_file_size_gb: 10
+reclaim_stress_vm_workers: 2
+reclaim_stress_vm_bytes: "80%"
+reclaim_stress_timeout: "30s"
+
+reclaim_results_dir_remote: /var/tmp/kernel-reclaim-results
+reclaim_results_dir_local: "./artifacts/reclaim-results"
+
+# Optional: run bpftrace if available
+reclaim_enable_bpftrace: false
+
+# Optional: override boot wait after reboot
+reboot_timeout: 1800
+post_reboot_delay: 20
